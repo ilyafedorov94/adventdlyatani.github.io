@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Колесо подарков</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            background: #f0f1f0;
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+        
+        /* Снежинки на заднем плане - FIXED позиция */
+        .snowflakes-bg {
+            position: fixed; /* Фиксированная позиция - не двигается при скролле */
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none; /* Не блокируют клики */
+            z-index: -1; /* Позади всего контента */
+            overflow: hidden;
+        }
+        
+        .snowflake {
+            position: absolute;
+            opacity: 0.4; /* Полупрозрачные */
+            filter: brightness(0.9); /* Слегка приглушенные */
+        }
+        
+        .snowflake img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        
+        /* Анимация для снежинок (опционально) */
+        @keyframes float {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-10px) rotate(10deg); }
+        }
+        
+        .snowflake.animated {
+            animation: float 8s infinite ease-in-out;
+        }
+        
+        /* Первый экран - два блока */
+        .first-screen {
+            display: flex;
+            flex: 1;
+            min-height: 100vh;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+            gap: 60px;
+            position: relative;
+            z-index: 1; /* Выше снежинок */
+        }
+        
+        /* Левая колонка - текст */
+        .text-column {
+            flex: 1;
+            max-width: 500px;
+            padding: 40px;
+            background: rgba(255, 255, 255, 0.85); /* Полупрозрачный фон для читаемости */
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            position: relative;
+            z-index: 2; /* Еще выше */
+        }
+        
+        .typing-container {
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+        }
+        
+        .typing-text {
+            font-size: 48px;
+            font-weight: bold;
+            color: #333;
+            line-height: 1.2;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            opacity: 0;
+            transition: opacity 0.6s ease-in-out;
+        }
+        
+        .typing-text.active {
+            opacity: 1;
+        }
+        
+        /* Курсор - одна оранжевая палочка */
+        .cursor {
+            display: inline-block;
+            width: 3px;
+            background-color: #FF4500;
+            animation: blink 1s infinite;
+            height: 55px;
+            vertical-align: middle;
+            margin-left: 5px;
+            border-radius: 1px;
+        }
+        
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+        
+        /* Правая колонка - фото */
+        .photo-column {
+            flex: 1;
+            max-width: 500px;
+            padding: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            z-index: 2; /* Выше снежинок */
+        }
+        
+        .photo-placeholder {
+            width: 100%;
+            height: 500px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border: 2px dashed #ccc;
+            color: #888;
+            font-size: 18px;
+            text-align: center;
+            padding: 0;
+            overflow: hidden;
+            position: relative;
+            z-index: 2;
+        }
+        
+        .photo-placeholder img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 18px;
+            display: none;
+        }
+        
+        .photo-placeholder.active img {
+            display: block;
+        }
+        
+        .photo-placeholder.active {
+            border: none;
+            color: transparent;
+        }
+        
+        /* Кнопка для перехода к колесу */
+        .continue-btn {
+            margin-top: 80px;
+            padding: 22px 50px;
+            font-size: 24px;
+            cursor: pointer;
+            border: none;
+            border-radius: 14px;
+            background: linear-gradient(135deg, #FF4500, #FF6B35);
+            color: white;
+            transition: all 0.4s ease;
+            box-shadow: 0 12px 35px rgba(255, 69, 0, 0.3);
+            font-weight: bold;
+            opacity: 0;
+            transform: translateY(25px);
+            position: relative;
+            overflow: hidden;
+            z-index: 2; /* Выше снежинок */
+        }
+        
+        .continue-btn.visible {
+            opacity: 1;
+            transform: translateY(0);
+            transition: all 0.6s ease 0.2s;
+        }
+        
+        .continue-btn:hover {
+            transform: scale(1.05) translateY(-3px);
+            box-shadow: 0 18px 45px rgba(255, 69, 0, 0.4);
+        }
+        
+        .continue-btn:active {
+            transform: scale(0.98) translateY(0);
+        }
+        
+        /* Эффект свечения для кнопки */
+        .continue-btn::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: rgba(255, 255, 255, 0.1);
+            transform: rotate(45deg);
+            transition: all 0.5s ease;
+            opacity: 0;
+        }
+        
+        .continue-btn:hover::after {
+            transform: rotate(45deg) translate(50%, 50%);
+            opacity: 1;
+        }
+        
+        /* Второй экран - колесо (изначально скрыт) */
+        .wheel-screen {
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 40px 20px;
+            position: relative;
+            z-index: 1; /* Выше снежинок */
+        }
+        
+        /* Контейнер для колеса и стрелки */
+        .wheel-container {
+            position: relative;
+            width: 416px;
+            height: 416px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.9); /* Полупрозрачный фон */
+            border-radius: 25px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+            padding: 20px;
+            z-index: 2; /* Выше снежинок */
+        }
+        
+        #wheel {
+            width: 390px;
+            height: 390px;
+            border-radius: 50%;
+            background: url('wheel.png') center/cover no-repeat;
+            transform: rotate(0deg);
+            transition: transform 4s cubic-bezier(0.1, 0.7, 0.1, 1);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
+        }
+        
+        .pointer {
+            position: absolute;
+            top: -55px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 40px;
+            height: 60px;
+            z-index: 10;
+        }
+        
+        .pointer-arrow {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 0;
+            height: 0;
+            border-left: 20px solid transparent;
+            border-right: 20px solid transparent;
+            border-top: 40px solid #FF4500;
+            filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.3));
+        }
+        
+        /* ОБНОВЛЕННЫЕ ОРАНЖЕВЫЕ КНОПКИ */
+        button {
+            margin-top: 45px;
+            padding: 16px 32px;
+            font-size: 19px;
+            cursor: pointer;
+            border: none;
+            border-radius: 9px;
+            background: linear-gradient(135deg, #FF4500, #FF6B35); /* Оранжевый градиент */
+            color: white;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 25px rgba(255, 69, 0, 0.2); /* Оранжевая тень */
+            z-index: 2; /* Выше снежинок */
+        }
+        
+        button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 12px 30px rgba(255, 69, 0, 0.3); /* Оранжевая тень */
+            background: linear-gradient(135deg, #FF6B35, #FF8C00); /* Более светлый оранжевый */
+        }
+        
+        button:active {
+            transform: scale(0.98);
+        }
+        
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+            background: linear-gradient(135deg, #FF8C00, #FFA500); /* Светлый оранжевый для disabled */
+        }
+        
+        #result {
+            margin-top: 25px;
+            font-size: 23px;
+            font-weight: bold;
+            padding: 20px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            min-width: 320px;
+            text-align: center;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.5s ease;
+            z-index: 2; /* Выше снежинок */
+        }
+        
+        #result.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        /* ОБНОВЛЕННАЯ ОРАНЖЕВАЯ КНОПКА "ВЕРНУТЬСЯ НАЗАД" */
+        .back-btn {
+            margin-top: 30px;
+            background: linear-gradient(135deg, #FF4500, #FF6B35); /* Оранжевый градиент */
+            padding: 12px 25px;
+            font-size: 16px;
+            z-index: 2; /* Выше снежинок */
+        }
+        
+        .back-btn:hover {
+            background: linear-gradient(135deg, #FF6B35, #FF8C00); /* Более светлый оранжевый */
+        }
+        
+        /* БЛОК ИСТОРИИ ВЫИГРЫШЕЙ НА СТРАНИЦЕ КОЛЕСА */
+        .history-block {
+            margin-top: 60px; /* УВЕЛИЧИЛИ ОТСТУП ОТ КНОПКИ */
+            margin-bottom: 40px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 20px 30px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+            text-align: center;
+            width: 400px;
+            max-width: 90%;
+            border: 2px solid #FF6B35;
+            z-index: 2;
+            position: relative; /* Статичное положение - не двигается */
+        }
+        
+        .history-title {
+            color: #666;
+            font-size: 16px;
+            margin-bottom: 10px;
+            font-weight: normal;
+        }
+        
+        .history-gifts {
+            color: #333;
+            font-weight: bold;
+            font-size: 18px;
+            min-height: 30px;
+            padding: 10px;
+            background: rgba(255, 107, 53, 0.1);
+            border-radius: 10px;
+            margin-bottom: 15px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        
+        .history-gift {
+            display: inline-block;
+            margin: 5px;
+            padding: 8px 15px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+            border: 1px solid #FFD700;
+            position: relative;
+        }
+        
+        /* Индикатор для нового подарка */
+        .history-gift.new-gift {
+            border: 2px solid #4CAF50;
+            background: #f0f9f0;
+            animation: pulse 1.5s ease;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        .clear-history {
+            padding: 8px 20px;
+            font-size: 14px;
+            background: #f0f1f0;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            cursor: pointer;
+            color: #666;
+            transition: all 0.2s ease;
+        }
+        
+        .clear-history:hover {
+            background: #e0e0e0;
+            color: #333;
+        }
+        
+        .no-history {
+            color: #888;
+            font-style: italic;
+            font-weight: normal;
+            padding: 15px;
+        }
+        
+        /* Адаптивность */
+        @media (max-width: 900px) {
+            .first-screen {
+                flex-direction: column;
+                gap: 40px;
+                padding: 20px;
+            }
+            
+            .text-column,
+            .photo-column {
+                max-width: 100%;
+                padding: 20px;
+            }
+            
+            .typing-text {
+                font-size: 36px;
+            }
+            
+            .typing-container {
+                min-height: 180px;
+            }
+            
+            .photo-placeholder {
+                max-width: 500px;
+                height: 400px;
+            }
+            
+            .continue-btn {
+                font-size: 22px;
+                padding: 20px 45px;
+                margin-top: 60px;
+            }
+            
+            .history-block {
+                width: 350px;
+                padding: 15px 25px;
+                margin-top: 40px; /* УВЕЛИЧИЛИ ОТСТУП ДЛЯ ПЛАНШЕТОВ */
+                margin-bottom: 30px;
+            }
+        }
+        
+        @media (max-width: 600px) {
+            .wheel-container {
+                width: 360px;
+                height: 360px;
+                padding: 15px;
+            }
+            
+            #wheel {
+                width: 340px;
+                height: 340px;
+            }
+            
+            .typing-text {
+                font-size: 32px;
+            }
+            
+            .typing-container {
+                min-height: 160px;
+            }
+            
+            .photo-placeholder {
+                height: 350px;
+            }
+            
+            .continue-btn {
+                margin-top: 50px;
+                font-size: 20px;
+                padding: 18px 40px;
+            }
+            
+            .history-block {
+                width: 320px;
+                padding: 12px 20px;
+                margin-top: 35px; /* УВЕЛИЧИЛИ ОТСТУП ДЛЯ МОБИЛЬНЫХ */
+            }
+            
+            .history-gifts {
+                font-size: 16px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .wheel-container {
+                width: 320px;
+                height: 320px;
+                padding: 10px;
+            }
+            
+            #wheel {
+                width: 300px;
+                height: 300px;
+            }
+            
+            .photo-placeholder {
+                height: 300px;
+                max-width: 100%;
+            }
+            
+            .typing-text {
+                font-size: 28px;
+            }
+            
+            .typing-container {
+                min-height: 140px;
+            }
+            
+            .continue-btn {
+                margin-top: 40px;
+                font-size: 18px;
+                padding: 16px 35px;
+            }
+            
+            .history-block {
+                width: 280px;
+                padding: 10px 15px;
+                margin-top: 25px; /* УВЕЛИЧИЛИ ОТСТУП ДЛЯ МАЛЕНЬКИХ ЭКРАНОВ */
+                margin-bottom: 20px;
+            }
+            
+            .history-gifts {
+                font-size: 15px;
+                padding: 8px;
+                max-height: 120px;
+            }
+            
+            .history-gift {
+                padding: 6px 12px;
+                margin: 4px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Снежинки на заднем плане -->
+    
+<div class="snowflakes-bg" id="snowflakesBg">
+    <!-- Ваши снежинки здесь -->
+    <div class="snowflake" style="top: 10%; left: 5%; width: 60px; height: 60px;">
+        <img src="snowflake1.png" alt="Снежинка">
+    </div>
+    <div class="snowflake" style="top: 20%; right: 10%; width: 45px; height: 45px;">
+        <img src="snowflake1.png" alt="Снежинка">
+    </div>
+    <div class="snowflake" style="top: 60%; left: 15%; width: 70px; height: 70px;">
+        <img src="snowflake1.png" alt="Снежинка">
+    </div>
+    <div class="snowflake" style="top: 40%; right: 20%; width: 50px; height: 50px;">
+        <img src="snowflake1.png" alt="Снежинка">
+    </div>
+    <div class="snowflake" style="top: 80%; left: 85%; width: 55px; height: 55px;">
+        <img src="snowflake1.png" alt="Снежинка">
+    </div>
+    <div class="snowflake" style="top: 30%; left: 75%; width: 65px; height: 65px;">
+        <img src="snowflake1.png" alt="Снежинка">
+    </div>
+</div>
+    
+    <!-- Первый экран -->
+    <div class="first-screen">
+        <!-- Левая колонка - текст -->
+        <div class="text-column">
+            <div class="typing-container">
+                <div class="typing-text" id="text1"></div>
+                <div class="typing-text" id="text2"></div>
+            </div>
+            <button class="continue-btn" id="continueBtn">К подарочкам!</button>
+        </div>
+        
+        <!-- Правая колонка - фото -->
+        <div class="photo-column">
+            <div class="photo-placeholder" id="photoContainer">
+                <div>Добавьте фотографию в папку с названием<br>photo.jpg</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Второй экран - колесо (скрыт изначально) -->
+    <div class="wheel-screen" id="wheelScreen">
+        <div class="wheel-container">
+            <div id="wheel"></div>
+            <div class="pointer">
+                <div class="pointer-arrow"></div>
+            </div>
+        </div>
+        
+        <button id="spinBtn">Крути!</button>
+        <div id="result"></div>
+        <button class="back-btn" id="backBtn">← Вернуться назад</button>
+        
+        <!-- Блок истории выигрышей - ТОЛЬКО НА СТРАНИЦЕ КОЛЕСА -->
+        <div class="history-block" id="historyBlock">
+            <div class="history-title">Ты уже выиграла:</div>
+            <div class="history-gifts" id="historyGifts">
+                <div class="no-history">Пока нет выигранных подарков</div>
+            </div>
+            <button class="clear-history" id="clearHistoryBtn">Очистить историю</button>
+        </div>
+    </div>
+
+    <script>
+        // Элементы первого экрана
+        const text1 = document.getElementById('text1');
+        const text2 = document.getElementById('text2');
+        const continueBtn = document.getElementById('continueBtn');
+        const photoContainer = document.getElementById('photoContainer');
+        const snowflakesBg = document.getElementById('snowflakesBg');
+        
+        // Элементы второго экрана
+        const wheelScreen = document.getElementById('wheelScreen');
+        const wheel = document.getElementById('wheel');
+        const spinBtn = document.getElementById('spinBtn');
+        const result = document.getElementById('result');
+        const backBtn = document.getElementById('backBtn');
+        
+        // Элементы истории (только на странице колеса)
+        const historyBlock = document.getElementById('historyBlock');
+        const historyGifts = document.getElementById('historyGifts');
+        const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+        
+        const gifts = [
+            'Подарок №1',
+            'Подарок №2',
+            'Подарок №3',
+            'Подарок №4',
+            'Подарок №5',
+            'Подарок №6',
+            'Подарок №7'
+        ];
+
+        let spinning = false;
+        let uniqueGifts = []; // Массив для хранения УНИКАЛЬНЫХ выигранных подарков
+        let lastAddedGift = null; // Последний добавленный подарок (для анимации)
+
+        // Функция для загрузки истории из localStorage
+        function loadHistory() {
+            const savedHistory = localStorage.getItem('wheelUniqueGifts');
+            if (savedHistory) {
+                uniqueGifts = JSON.parse(savedHistory);
+                updateHistoryBlock();
+            }
+        }
+
+        // Функция для сохранения истории в localStorage
+        function saveHistory() {
+            localStorage.setItem('wheelUniqueGifts', JSON.stringify(uniqueGifts));
+        }
+
+        // Функция для обновления блока истории
+        function updateHistoryBlock() {
+            if (uniqueGifts.length === 0) {
+                historyGifts.innerHTML = '<div class="no-history">Пока нет выигранных подарков</div>';
+            } else {
+                // Сортируем подарки по номеру (если есть цифры в названии)
+                const sortedGifts = [...uniqueGifts].sort((a, b) => {
+                    const numA = parseInt(a.match(/\d+/)?.[0] || 0);
+                    const numB = parseInt(b.match(/\d+/)?.[0] || 0);
+                    return numA - numB;
+                });
+                
+                // Показываем все уникальные подарки
+                const giftsHtml = sortedGifts.map(gift => {
+                    const isNew = gift === lastAddedGift;
+                    return `<span class="history-gift ${isNew ? 'new-gift' : ''}">${gift}</span>`;
+                }).join('');
+                
+                historyGifts.innerHTML = giftsHtml;
+                
+                // Сбрасываем анимацию через 2 секунды
+                if (lastAddedGift) {
+                    setTimeout(() => {
+                        lastAddedGift = null;
+                        updateHistoryBlock();
+                    }, 2000);
+                }
+            }
+        }
+
+        // Функция для добавления выигранного подарка в историю (только если он уникальный)
+        function addToHistory(gift) {
+            // Проверяем, есть ли уже такой подарок в истории
+            if (!uniqueGifts.includes(gift)) {
+                // Это новый уникальный подарок
+                uniqueGifts.push(gift);
+                lastAddedGift = gift; // Запоминаем для анимации
+                saveHistory();
+                updateHistoryBlock();
+                
+                return { isNew: true };
+            } else {
+                // Подарок уже есть в коллекции
+                return { isNew: false };
+            }
+        }
+
+        // Функция для очистки истории
+        function clearHistory() {
+            if (confirm('Очистить всю историю выигрышей?')) {
+                uniqueGifts = [];
+                lastAddedGift = null;
+                localStorage.removeItem('wheelUniqueGifts');
+                updateHistoryBlock();
+                
+                // Показываем сообщение об очистке
+                result.innerHTML = `
+                    <div style="color: #666; font-size: 0.9em; margin-bottom: 8px;">
+                        История очищена
+                    </div>
+                    <div style="font-size: 1em; color: #333;">
+                        Можно начинать сначала!
+                    </div>
+                `;
+                result.classList.add('show');
+                
+                setTimeout(() => {
+                    result.classList.remove('show');
+                }, 2000);
+            }
+        }
+
+        // Функция для анимации печатающегося текста
+        function typeWriter(text, element, speed = 100) {
+            return new Promise((resolve) => {
+                element.innerHTML = '';
+                let i = 0;
+                
+                function type() {
+                    if (i < text.length) {
+                        element.innerHTML = text.substring(0, i + 1) + '<span class="cursor">|</span>';
+                        i++;
+                        setTimeout(type, speed);
+                    } else {
+                        // После завершения печати убираем курсор
+                        element.innerHTML = text;
+                        resolve();
+                    }
+                }
+                
+                type();
+            });
+        }
+
+        // Загружаем фото (если есть)
+        function loadPhoto() {
+            const img = new Image();
+            img.src = 'photo.jpg';
+            img.alt = 'Фото для Танечки';
+            img.onload = function() {
+                photoContainer.innerHTML = '';
+                photoContainer.appendChild(img);
+                photoContainer.classList.add('active');
+            };
+            img.onerror = function() {
+                console.log('Фото не найдено. Добавьте файл photo.jpg в папку с сайтом.');
+            };
+        }
+        
+        // Показываем кнопку продолжения
+        function showContinueButton() {
+            continueBtn.classList.add('visible');
+        }
+        
+        // Запускаем анимацию текста
+        async function startTypingAnimation() {
+            // 1. Показываем и печатаем первую фразу
+            text1.classList.add('active');
+            await typeWriter("Это сайт для Танечки", text1, 70);
+            
+            // 2. Пауза 0.8 секунды
+            await new Promise(resolve => setTimeout(resolve, 300));
+            
+            // 3. Плавное исчезание первой фразы
+            text1.style.transition = 'opacity 0.6s ease-in-out';
+            text1.classList.remove('active');
+            
+            // Ждем завершения анимации исчезновения
+            await new Promise(resolve => setTimeout(resolve, 600));
+            
+            // 4. Пауза 0.3 секунды между фразами
+            await new Promise(resolve => setTimeout(resolve, 300));
+            
+            // 5. Показывается и печатается вторая фраза
+            text2.classList.add('active');
+            await typeWriter("Здесь ты можешь выигрывать подарки каждый день", text2, 70);
+            
+            // 6. Показываем кнопку с небольшой задержкой
+            await new Promise(resolve => setTimeout(resolve, 300));
+            showContinueButton();
+        }
+        
+        // Переключение между экранами
+        function showWheelScreen() {
+            document.querySelector('.first-screen').style.opacity = '0';
+            document.querySelector('.first-screen').style.transform = 'translateY(-20px)';
+            document.querySelector('.first-screen').style.transition = 'all 0.5s ease';
+            
+            setTimeout(() => {
+                document.querySelector('.first-screen').style.display = 'none';
+                wheelScreen.style.display = 'flex';
+                wheelScreen.style.opacity = '0';
+                wheelScreen.style.transform = 'translateY(20px)';
+                
+                setTimeout(() => {
+                    wheelScreen.style.opacity = '1';
+                    wheelScreen.style.transform = 'translateY(0)';
+                    wheelScreen.style.transition = 'all 0.5s ease';
+                    
+                    // Анимация появления колеса
+                    document.querySelector('.wheel-container').style.opacity = '0';
+                    document.querySelector('.wheel-container').style.transform = 'translateY(20px) scale(0.9)';
+                    document.querySelector('.wheel-container').style.transition = 'all 0.5s ease 0.2s';
+                    
+                    setTimeout(() => {
+                        document.querySelector('.wheel-container').style.opacity = '1';
+                        document.querySelector('.wheel-container').style.transform = 'translateY(0) scale(1)';
+                    }, 100);
+                }, 50);
+            }, 500);
+        }
+        
+        function showFirstScreen() {
+            wheelScreen.style.opacity = '0';
+            wheelScreen.style.transform = 'translateY(20px)';
+            wheelScreen.style.transition = 'all 0.5s ease';
+            
+            setTimeout(() => {
+                wheelScreen.style.display = 'none';
+                document.querySelector('.first-screen').style.display = 'flex';
+                document.querySelector('.first-screen').style.opacity = '0';
+                document.querySelector('.first-screen').style.transform = 'translateY(-20px)';
+                
+                setTimeout(() => {
+                    document.querySelector('.first-screen').style.opacity = '1';
+                    document.querySelector('.first-screen').style.transform = 'translateY(0)';
+                    document.querySelector('.first-screen').style.transition = 'all 0.5s ease';
+                }, 50);
+            }, 500);
+        }
+        
+        // Инициализация при загрузке страницы
+        window.addEventListener('load', () => {
+            // Загружаем историю
+            loadHistory();
+            
+            // Анимация появления первого экрана
+            document.querySelector('.first-screen').style.opacity = '0';
+            document.querySelector('.first-screen').style.transform = 'translateY(-20px)';
+            document.querySelector('.first-screen').style.transition = 'all 0.5s ease';
+            
+            setTimeout(() => {
+                document.querySelector('.first-screen').style.opacity = '1';
+                document.querySelector('.first-screen').style.transform = 'translateY(0)';
+                
+                // Начинаем анимацию текста
+                startTypingAnimation();
+                
+                // Загружаем фото
+                loadPhoto();
+            }, 300);
+        });
+        
+        // Обработчики событий для кнопок
+        continueBtn.addEventListener('click', showWheelScreen);
+        backBtn.addEventListener('click', showFirstScreen);
+        clearHistoryBtn.addEventListener('click', clearHistory);
+        
+        // Логика колеса
+        wheel.style.transform = 'rotate(0deg)';
+        
+        spinBtn.addEventListener('click', () => {
+            if (spinning) return;
+            spinning = true;
+            result.textContent = '';
+            result.classList.remove('show');
+            result.style.opacity = '0';
+
+            const randomIndex = Math.floor(Math.random() * gifts.length);
+            const sectorAngle = 360 / gifts.length;
+            
+            const fullRotations = 5;
+            const extraDegrees = 360 * fullRotations;
+            
+            const finalAngle = -(extraDegrees + (randomIndex * sectorAngle) + (sectorAngle / 2));
+            
+            wheel.style.transition = 'none';
+            wheel.style.transform = 'rotate(0deg)';
+            
+            spinBtn.style.transform = 'scale(0.95)';
+            
+            setTimeout(() => {
+                spinBtn.style.transform = '';
+                
+                wheel.style.transition = 'transform 4s cubic-bezier(0.1, 0.7, 0.1, 1)';
+                wheel.style.transform = `rotate(${finalAngle}deg)`;
+
+                spinBtn.disabled = true;
+                spinBtn.textContent = 'Крутится...';
+
+                setTimeout(() => {
+                    let giftDisplay = gifts[randomIndex];
+                    if (giftDisplay.includes('Lemonchello')) {
+                        giftDisplay = 'Свеча «Lemonchello on my mind»';
+                    }
+                    
+                    // Пытаемся добавить подарок в историю (только если он уникальный)
+                    addToHistory(giftDisplay);
+                    
+                    // Показываем только название выигранного подарка
+                    result.innerHTML = `
+                        <div style="color: #666; font-size: 0.9em; margin-bottom: 8px;">
+                            Ты выиграла:
+                        </div>
+                        <div style="font-size: 1.3em; color: #333; font-weight: bold;">
+                            ${giftDisplay}
+                        </div>
+                    `;
+                    
+                    result.classList.add('show');
+                    result.style.opacity = '1';
+                    
+                    spinning = false;
+                    spinBtn.disabled = false;
+                    spinBtn.textContent = 'Крути!';
+                }, 4000);
+            }, 150);
+        });
+    </script>
+</body>
+</html>
